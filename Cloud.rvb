@@ -1,0 +1,53 @@
+Option Explicit
+'Script written by <Junichiro Horikawa>
+'Script copyrighted by <Junichiro Horikawa>
+'Script version Monday, 31 October 2011 18:14:06
+
+Call Main()
+Sub Main()
+	Dim arrObjs,strObj,lngDiv,arrPts,pt1,pt2,midPt,arrParams,vecTan,dblMid,vecNom,vecNom2,vec2pt,dblLen,arrPts2,midPt2,arrCrvs(),strCrv
+	Dim i
+	Rhino.Command("-Sketch Closed=Yes")
+	If (Rhino.LastCommandResult() = 0) Then
+		arrObjs = Rhino.LastCreatedObjects()
+		If Not IsArray(arrObjs) Then Exit Sub
+		lngDiv = 50'Rhino.GetInteger("define division number", 50, 10, 300)
+		If IsNull(lngDiv) Then Exit Sub
+		
+		
+		Rhino.EnableRedraw(False)
+		
+		For Each strObj In arrObjs
+			If Rhino.IsCurve(strObj) Then
+				arrParams = Rhino.DivideCurve(strObj, lngDiv,, False)
+				For i = 0 To UBound(arrParams)
+					If i = UBound(arrParams) Then
+						pt1 = Rhino.EvaluateCurve(strObj, arrParams(i))
+						pt2 = Rhino.EvaluateCurve(strObj, arrParams(0))
+					Else
+						pt1 = Rhino.EvaluateCurve(strObj, arrParams(i))
+						pt2 = Rhino.EvaluateCurve(strObj, arrParams(i + 1))
+					End If
+					midPt = Array((pt1(0) + pt2(0)) / 2, (pt1(1) + pt2(1)) / 2, (pt1(2) + pt2(2)) / 2)
+					dblMid = Rhino.CurveClosestPoint(strObj, midPt)
+					vecTan = Rhino.CurveTangent(strObj, dblMid)
+					vecNom = Rhino.VectorRotate(vecTan, 90, Array(0, 0, 1))
+					vecNom2 = Rhino.VectorUnitize(vecNom)
+					vec2pt = Rhino.VectorSubtract(pt2, pt1)
+					dblLen = Rhino.VectorLength(vec2pt)
+					vecNom = Rhino.VectorScale(vecNom2, dblLen / 1.5)
+					midPt2 = Array(midPt(0) + vecNom(0), midPt(1) + vecNom(1), midPt(2) + vecNom(2))
+					arrPts2 = Array(pt1, midPt2, pt2)
+					strCrv = Rhino.AddCurve(arrPts2, 2)
+					ReDim Preserve arrCrvs(i):arrCrvs(i) = strCrv
+				Next
+				
+			End If
+			Rhino.JoinCurves arrCrvs, True
+		Next
+		
+		
+		Rhino.DeleteObjects(arrObjs)
+		Rhino.EnableRedraw(True)
+	End If
+End Sub
